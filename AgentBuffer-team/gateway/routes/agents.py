@@ -10,12 +10,17 @@ from pydantic import BaseModel
 from gateway.auth import OrgId
 from gateway.db import get_supabase
 from services.cognition.run_now import run_now
-from services.main_agent.agent import extract_spec, register_cognition
+from services.main_agent.agent import (
+    converse_with_main_agent,
+    extract_spec,
+    register_cognition,
+)
 from services.shared.db import (
     get_brand_kit,
     get_scheduled_agent,
     insert_scheduled_agent,
     start_run,
+    update_scheduled_agent,
 )
 
 router = APIRouter(prefix="/api", tags=["agents"])
@@ -25,6 +30,12 @@ logger = logging.getLogger(__name__)
 
 class ExtractSpecRequest(BaseModel):
     prompt: str
+    brand_id: str | None = None
+
+
+class ConverseSpecRequest(BaseModel):
+    message: str
+    current_spec: dict | None = None
     brand_id: str | None = None
 
 
@@ -74,6 +85,10 @@ class RunAgentRequest(BaseModel):
     scheduled_agent_id: str
 
 
+class UpdateAgentRequest(BaseModel):
+    patch: dict
+
+
 @router.post("/spec/extract")
 async def extract_spec_endpoint(body: ExtractSpecRequest, org_id: OrgId) -> dict:
     """Convert a free-form user request into a JSON cognition-agent spec."""
@@ -85,6 +100,20 @@ async def extract_spec_endpoint(body: ExtractSpecRequest, org_id: OrgId) -> dict
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return extract_spec(body.prompt, brand_kit)
+
+
+@router.post("/spec/converse")
+async def converse_spec_endpoint(body: ConverseSpecRequest, org_id: OrgId) -> dict:
+    """Multi-turn refine. Returns {spec, message, done} so the UI can show
+    a clarifying question or confirm readiness without re-prompting from scratch.
+    """
+    sb = get_supabase()
+    brand_id = _resolve_brand_id(sb, org_id, body.brand_id)
+    try:
+        brand_kit = get_brand_kit(brand_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return converse_with_main_agent(body.message, body.current_spec, brand_kit)
 
 
 @router.post("/agents")
@@ -138,3 +167,28 @@ async def trigger_run(
 
     background_tasks.add_task(_runner)
     return {"run_id": run_id, "scheduled_agent_id": body.scheduled_agent_id}
+
+
+@router.get("/agents/{scheduled_agent_id}")
+async def get_agent(scheduled_agent_id: str, org_id: OrgId) -> dict:
+    """Return one scheduled_agents row, scoped to org."""
+    try:
+        row = get_scheduled_agent(scheduled_agent_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if row["org_id"] != org_id:
+        raise HTTPException(status_code=404, detail="Scheduled agent not found")
+    return row
+
+
+@router.patch("/agents/{scheduled_agent_id}")
+async def update_agent(
+    scheduled_agent_id: str,
+    body: UpdateAgentRequest,
+    org_id: OrgId,
+) -> dict:
+    """Patch the editable subset of a scheduled_agents row."""
+    try:
+        return update_scheduled_agent(scheduled_agent_id, body.patch, org_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

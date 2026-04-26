@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { ChannelIcon } from "@/components/ui/channel-icon";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/utils";
 import type { ScheduledAgentRow } from "@/actions/agents";
 import { RunNowButton } from "@/components/agents/run-now-button";
+import { NextRunCountdown } from "@/components/agents/next-run-countdown";
 
 interface AgentCardProps {
   agent: ScheduledAgentRow;
@@ -86,32 +88,46 @@ export function AgentCard({ agent }: AgentCardProps) {
       )}
 
       {/* Footer */}
-      <div className="mt-auto pt-2 border-t border-dashed border-ink-3 flex items-center justify-between gap-2">
-        {isDisabled ? (
-          <span className="font-mono text-[10px] text-ink-3">
-            off · last run 11d ago
-          </span>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            <span
-              className={cn(
-                "inline-block w-[6px] h-[6px] rounded-full",
-                dotByHealth[agent.health]
-              )}
-            />
+      <div className="mt-auto pt-2 border-t border-dashed border-ink-3 flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-2">
+          {isDisabled ? (
             <span className="font-mono text-[10px] text-ink-3">
-              {agent.health}
-              {" · "}
-              {agent.last_latency_ms != null ? agent.last_latency_ms : "—"} ms
+              off · paused
+            </span>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  "inline-block w-[6px] h-[6px] rounded-full",
+                  dotByHealth[agent.health]
+                )}
+              />
+              <span className="font-mono text-[10px] text-ink-3">
+                {agent.health}
+                {" · "}
+                {agent.last_latency_ms != null ? agent.last_latency_ms : "—"} ms
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <RunNowButton scheduledAgentId={agent.id} disabled={isDisabled} />
+            <Link
+              href={`/dashboard/create?edit=${agent.id}`}
+              className="font-mono text-[10px] text-ink-3 hover:text-ink underline-offset-2 hover:underline"
+            >
+              edit
+            </Link>
+            <span className="font-mono text-[10px] text-ink-3">
+              {agent.runs_total} runs
             </span>
           </div>
-        )}
-        <div className="flex items-center gap-2">
-          <RunNowButton scheduledAgentId={agent.id} disabled={isDisabled} />
-          <span className="font-mono text-[10px] text-ink-3">
-            {agent.runs_total} runs
-          </span>
         </div>
+        {!isDisabled && (
+          <NextRunCountdown
+            nextRunAt={agent.next_run_at}
+            cadence={agent.cadence}
+          />
+        )}
       </div>
     </div>
   );

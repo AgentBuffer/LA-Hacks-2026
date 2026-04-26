@@ -1,7 +1,6 @@
 "use client";
 
 import { AgentAvatar } from "@/components/ui/agent-avatar";
-import { Button } from "@/components/ui/button";
 import { PulseDot } from "@/components/ui/pulse-dot";
 
 export function ChatHead() {
@@ -14,14 +13,8 @@ export function ChatHead() {
         </div>
         <div className="flex items-center gap-2 font-mono text-[10px] text-ink-3">
           <PulseDot tone="ok" />
-          <span>@asi1-orchestrator</span>
-          <span className="opacity-80">agent1qfn…7m2z9p</span>
+          <span>routes through ASI:One</span>
         </div>
-      </div>
-      <div className="ml-auto">
-        <Button variant="ghost" size="sm" type="button">
-          ⚙ infra
-        </Button>
       </div>
     </div>
   );

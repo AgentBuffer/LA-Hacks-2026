@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any
 
@@ -313,6 +313,18 @@ def list_scheduled_agents() -> list[dict]:
     )
 
 
+def update_next_run_at(scheduled_agent_id: str, cadence_seconds: int) -> None:
+    """Stamp `next_run_at = now + cadence_seconds` after a successful tick.
+
+    Lets the supervisor and UI compute a countdown without re-parsing cadence.
+    """
+    sb = get_supabase()
+    next_run = datetime.now(timezone.utc) + timedelta(seconds=cadence_seconds)
+    sb.table("scheduled_agents").update(
+        {"next_run_at": next_run.isoformat()}
+    ).eq("id", scheduled_agent_id).execute()
+
+
 def insert_scheduled_agent(spec: dict, brand_id: str, org_id: str) -> str:
     """Insert a scheduled_agents row from a Main-agent spec dict."""
     sb = get_supabase()
@@ -331,6 +343,44 @@ def insert_scheduled_agent(spec: dict, brand_id: str, org_id: str) -> str:
     }
     inserted = sb.table("scheduled_agents").insert(row).execute().data[0]
     return inserted["id"]
+
+
+ALLOWED_AGENT_PATCH_FIELDS = {
+    "display_name",
+    "role_line",
+    "description",
+    "cadence",
+    "avatar_letter",
+    "owns_channels",
+    "tools",
+    "voice_traits",
+}
+
+
+def update_scheduled_agent(scheduled_agent_id: str, patch: dict, org_id: str) -> dict:
+    """Update an existing scheduled_agents row with the allowed subset of `patch`.
+
+    Enforces org isolation: returns the row only if it belongs to `org_id`.
+    Raises ValueError if no row matches or the patch ends up empty.
+    """
+    sb = get_supabase()
+    safe = {k: v for k, v in patch.items() if k in ALLOWED_AGENT_PATCH_FIELDS}
+    if not safe:
+        raise ValueError("Patch contained no allowed fields")
+
+    result = (
+        sb.table("scheduled_agents")
+        .update(safe)
+        .eq("id", scheduled_agent_id)
+        .eq("org_id", org_id)
+        .execute()
+        .data
+    )
+    if not result:
+        raise ValueError(
+            f"Scheduled agent {scheduled_agent_id} not found for org {org_id}"
+        )
+    return result[0]
 
 
 def get_platform_connection(brand_id: str, platform: str) -> dict | None:

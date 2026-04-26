@@ -32,6 +32,27 @@ export async function extractSpec(prompt: string, brandId: string) {
   });
 }
 
+export interface ConverseSpecResponse {
+  spec: Record<string, unknown>;
+  message: string;
+  done: boolean;
+}
+
+export async function converseSpec(
+  message: string,
+  currentSpec: Record<string, unknown> | null,
+  brandId: string
+): Promise<ConverseSpecResponse> {
+  return gatewayFetch<ConverseSpecResponse>("/api/spec/converse", {
+    method: "POST",
+    body: JSON.stringify({
+      message,
+      current_spec: currentSpec,
+      brand_id: brandId,
+    }),
+  });
+}
+
 export async function createCognitionAgent(
   spec: Record<string, unknown>,
   brandId: string
@@ -64,5 +85,40 @@ export async function triggerPublish(slotIds: string[]) {
   return gatewayFetch<unknown[]>("/api/trigger-publish", {
     method: "POST",
     body: JSON.stringify({ slot_ids: slotIds }),
+  });
+}
+
+export interface ScheduledAgentRow {
+  id: string;
+  org_id: string;
+  brand_id: string;
+  slug: string;
+  display_name: string;
+  role_line: string;
+  description: string | null;
+  cadence: string;
+  channel?: string;
+  avatar_letter: string;
+  owns_channels: string[];
+  tools: string[];
+  voice_traits: string[];
+  status: string;
+  health: string;
+  runs_total: number;
+  next_run_at: string | null;
+  last_latency_ms: number | null;
+}
+
+export async function getAgent(id: string): Promise<ScheduledAgentRow> {
+  return gatewayFetch(`/api/agents/${id}`);
+}
+
+export async function updateAgent(
+  id: string,
+  patch: Record<string, unknown>
+): Promise<ScheduledAgentRow> {
+  return gatewayFetch(`/api/agents/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ patch }),
   });
 }

@@ -1,84 +1,104 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ChatContainer } from "./chat-container";
 import { SpecRail } from "./spec-rail";
+import type { ChatMessage } from "./scripted-flow";
 import {
-  QUICK_CHIPS,
-  SCRIPTED_USER_MESSAGE,
-  SPEC_REVEAL,
-  type ChatMessage,
-} from "./scripted-flow";
-import { extractSpec, gatewayFetch } from "@/lib/gateway";
+  converseSpec,
+  createCognitionAgent,
+  gatewayFetch,
+  getAgent,
+  updateAgent,
+} from "@/lib/gateway";
 
-const PREAMBLE_MESSAGE: ChatMessage = {
-  id: "preamble",
-  role: "main",
-  ts: "14:01",
-  body: (
-    <>
-      Hey — I&apos;m <strong>Main</strong>, your @asi1-orchestrator. Describe
-      the post you want and I&apos;ll route the brief through the right
-      uAgents. The spec on the right fills in as my crew chimes in.
-    </>
-  ),
-};
-
-function nowStamp(offsetSec = 0) {
-  const d = new Date();
-  d.setSeconds(d.getSeconds() + offsetSec);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-function specToOverrides(spec: Record<string, unknown>): Record<string, string> {
-  const voice = Array.isArray(spec.voice_traits)
-    ? (spec.voice_traits as string[]).join(" · ")
-    : "";
-  const tools = Array.isArray(spec.tools)
-    ? (spec.tools as string[]).slice(0, 3).join(" ")
-    : "";
-  return {
-    channel: String(spec.channel ?? ""),
-    scheduled: String(spec.cadence ?? ""),
-    format: String(spec.cadence ?? "auto"),
-    hook: String(spec.role_line ?? spec.description ?? ""),
-    voice,
-    caption: String(spec.display_name ?? ""),
-    hashtags: tools,
-  };
-}
+type Spec = Record<string, unknown>;
 
 interface BrandRow {
   brand_id: string;
 }
 
-export function CreateView() {
-  const [messages, setMessages] = useState<ChatMessage[]>([PREAMBLE_MESSAGE]);
-  const [revealedSpecKeys, setRevealedSpecKeys] = useState<Set<string>>(
-    new Set()
-  );
-  const [lastRevealedKey, setLastRevealedKey] = useState<string | null>(null);
-  const [pipelineStage, setPipelineStage] = useState(0);
-  const [chipsVisible, setChipsVisible] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [brandId, setBrandId] = useState<string | null>(null);
-  const [spec, setSpec] = useState<Record<string, unknown> | null>(null);
-  const [specOverrides, setSpecOverrides] = useState<Record<string, string>>({});
-  const timeoutsRef = useRef<number[]>([]);
+interface CreateViewProps {
+  editingId?: string;
+}
 
-  const clearTimeouts = useCallback(() => {
-    for (const id of timeoutsRef.current) {
-      window.clearTimeout(id);
-    }
-    timeoutsRef.current = [];
+function nowStamp() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function preambleMessage(): ChatMessage {
+  return {
+    id: "preamble",
+    role: "main",
+    ts: nowStamp(),
+    body: (
+      <>
+        Hey — I&apos;m <strong>Main</strong>. Describe a recurring agent you
+        want to hire and I&apos;ll draft the spec on the right. I&apos;ll ask a
+        follow-up if anything&apos;s vague.
+      </>
+    ),
+  };
+}
+
+function editingPreamble(spec: Spec): ChatMessage {
+  return {
+    id: "preamble-edit",
+    role: "main",
+    ts: nowStamp(),
+    body: (
+      <>
+        Editing <strong>{String(spec.display_name ?? "this agent")}</strong> —
+        tell me what should change. I&apos;ll merge it into the spec on the
+        right and you can save when ready.
+      </>
+    ),
+  };
+}
+
+function changedKeys(prev: Spec | null, next: Spec): Set<string> {
+  if (!prev) return new Set(Object.keys(next));
+  const out = new Set<string>();
+  for (const k of Object.keys(next)) {
+    if (JSON.stringify(prev[k]) !== JSON.stringify(next[k])) out.add(k);
+  }
+  return out;
+}
+
+function chipsFor(spec: Spec | null, done: boolean): string[] {
+  if (!spec) return [];
+  if (done) return [];
+  const missing: string[] = [];
+  if (!spec.cadence || String(spec.cadence).length < 3) {
+    missing.push("cadence: weekly", "cadence: daily", "cadence: every 3 days");
+  }
+  if (!spec.channel || !String(spec.channel)) {
+    missing.push("channel: linkedin", "channel: x", "channel: instagram");
+  }
+  const traits = Array.isArray(spec.voice_traits) ? spec.voice_traits : [];
+  if (traits.length < 2) missing.push("voice: thoughtful", "voice: confident");
+  return missing.slice(0, 4);
+}
+
+export function CreateView({ editingId }: CreateViewProps) {
+  const router = useRouter();
+  const [messages, setMessages] = useState<ChatMessage[]>([preambleMessage()]);
+  const [spec, setSpec] = useState<Spec | null>(null);
+  const [done, setDone] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [brandId, setBrandId] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState("");
+  const [pulsedKeys, setPulsedKeys] = useState<Set<string>>(new Set());
+  const pulseTimer = useRef<number | null>(null);
+
+  const append = useCallback((m: ChatMessage) => {
+    setMessages((prev) => [...prev, m]);
   }, []);
 
-  useEffect(() => {
-    return () => clearTimeouts();
-  }, [clearTimeouts]);
-
+  // Resolve org's first brand for the gateway call.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -94,146 +114,141 @@ export function CreateView() {
     };
   }, []);
 
-  const append = useCallback((msg: ChatMessage) => {
-    setMessages((prev) => [...prev, msg]);
+  // Seed editing state from URL.
+  useEffect(() => {
+    if (!editingId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const row = await getAgent(editingId);
+        if (cancelled) return;
+        const seeded: Spec = {
+          display_name: row.display_name,
+          role_line: row.role_line,
+          description: row.description ?? "",
+          cadence: row.cadence,
+          channel: row.owns_channels?.[0] ?? "",
+          owns_channels: row.owns_channels ?? [],
+          voice_traits: row.voice_traits ?? [],
+          tools: row.tools ?? [],
+          avatar_letter: row.avatar_letter,
+          slug: row.slug,
+        };
+        setSpec(seeded);
+        setDone(true);
+        setMessages([editingPreamble(seeded)]);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Could not load that agent",
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editingId]);
+
+  const triggerPulse = useCallback((keys: Set<string>) => {
+    setPulsedKeys(keys);
+    if (pulseTimer.current) window.clearTimeout(pulseTimer.current);
+    pulseTimer.current = window.setTimeout(
+      () => setPulsedKeys(new Set()),
+      900,
+    );
   }, []);
 
-  const revealSpec = useCallback((key: string) => {
-    setRevealedSpecKeys((prev) => {
-      const next = new Set(prev);
-      next.add(key);
-      return next;
-    });
-    setLastRevealedKey(key);
+  useEffect(() => {
+    return () => {
+      if (pulseTimer.current) window.clearTimeout(pulseTimer.current);
+    };
   }, []);
 
-  const runReal = useCallback(
-    async (userText: string) => {
-      clearTimeouts();
-      setRevealedSpecKeys(new Set());
-      setLastRevealedKey(null);
-      setPipelineStage(0);
-      setChipsVisible(false);
-      setSpec(null);
-      setSpecOverrides({});
-
+  const send = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || pending) return;
       append({
         id: `u-${Date.now()}`,
         role: "user",
         ts: nowStamp(),
-        body: userText,
+        body: trimmed,
       });
-
-      const thinking: ChatMessage = {
-        id: `m-think-${Date.now()}`,
-        role: "main",
-        ts: nowStamp(),
-        viaAgent: "@asi1-orchestrator",
-        body: "Routing through the strategist crew…",
-      };
-      append(thinking);
-
-      const useScripted = () => {
-        const revealOrder = SPEC_REVEAL.map((s, i) => ({
-          t: 600 + i * 200,
-          key: s.key,
-        }));
-        for (const r of revealOrder) {
-          const id = window.setTimeout(() => revealSpec(r.key), r.t);
-          timeoutsRef.current.push(id);
-        }
-        const t1 = window.setTimeout(() => setPipelineStage(1), 2200);
-        const t2 = window.setTimeout(() => setChipsVisible(true), 2300);
-        timeoutsRef.current.push(t1, t2);
-      };
-
-      if (!brandId) {
-        useScripted();
-        return;
-      }
-
+      setInputValue("");
+      setPending(true);
       try {
-        const fetched = await extractSpec(userText, brandId);
-        setSpec(fetched);
-        setSpecOverrides(specToOverrides(fetched));
-
+        const resp = await converseSpec(trimmed, spec, brandId ?? "");
+        const nextSpec = resp.spec as Spec;
+        triggerPulse(changedKeys(spec, nextSpec));
+        setSpec(nextSpec);
+        setDone(resp.done);
         append({
           id: `m-${Date.now()}`,
           role: "main",
           ts: nowStamp(),
-          viaAgent: "@asi1-orchestrator",
-          body: (
-            <>
-              Drafted a <strong>{String(fetched.cadence ?? "weekly")}</strong>
-              {" "}post for <strong>{String(fetched.channel ?? "linkedin")}</strong>
-              . Spec on the right ↘
-            </>
-          ),
+          body: resp.message,
         });
-
-        SPEC_REVEAL.forEach((row, i) => {
-          const id = window.setTimeout(() => revealSpec(row.key), 200 + i * 150);
-          timeoutsRef.current.push(id);
-        });
-        const t1 = window.setTimeout(
-          () => setPipelineStage(1),
-          200 + SPEC_REVEAL.length * 150 + 100
-        );
-        const t2 = window.setTimeout(
-          () => setChipsVisible(true),
-          200 + SPEC_REVEAL.length * 150 + 200
-        );
-        timeoutsRef.current.push(t1, t2);
       } catch (err) {
-        console.error("extractSpec failed", err);
+        const msg =
+          err instanceof Error ? err.message : "spec service unavailable";
         append({
-          id: `m-err-${Date.now()}`,
+          id: `e-${Date.now()}`,
           role: "main",
           ts: nowStamp(),
-          viaAgent: "@asi1-orchestrator",
-          body: "Spec service didn't respond — falling back to a scripted preview.",
+          body: <>spec service unavailable — {msg}</>,
         });
-        useScripted();
+      } finally {
+        setPending(false);
       }
     },
-    [append, brandId, clearTimeouts, revealSpec]
+    [append, brandId, pending, spec, triggerPulse],
   );
 
   const handleSend = useCallback(() => {
-    const text = inputValue.trim() || SCRIPTED_USER_MESSAGE;
-    setInputValue("");
-    void runReal(text);
-  }, [inputValue, runReal]);
+    void send(inputValue);
+  }, [inputValue, send]);
 
   const handleChipClick = useCallback(
     (chip: string) => {
-      void runReal(chip);
+      void send(chip);
     },
-    [runReal]
+    [send],
   );
 
   const handleReset = useCallback(() => {
-    clearTimeouts();
-    setMessages([PREAMBLE_MESSAGE]);
-    setRevealedSpecKeys(new Set());
-    setLastRevealedKey(null);
-    setPipelineStage(0);
-    setChipsVisible(false);
+    if (pulseTimer.current) window.clearTimeout(pulseTimer.current);
+    setMessages([
+      editingId && spec ? editingPreamble(spec) : preambleMessage(),
+    ]);
+    setSpec(editingId ? spec : null);
+    setDone(!!editingId);
     setInputValue("");
-    setSpec(null);
-    setSpecOverrides({});
-  }, [clearTimeouts]);
+    setPulsedKeys(new Set());
+  }, [editingId, spec]);
 
-  const allRevealed = revealedSpecKeys.size === SPEC_REVEAL.length;
-  const chips = chipsVisible ? QUICK_CHIPS : null;
+  const handleHire = useCallback(async () => {
+    if (!spec || !brandId || pending) return;
+    setPending(true);
+    try {
+      if (editingId) {
+        await updateAgent(editingId, spec);
+        toast.success("Agent updated.");
+      } else {
+        await createCognitionAgent(spec, brandId);
+        toast.success("Agent hired — supervisor picks it up within 30s.");
+      }
+      router.push("/dashboard/agents");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setPending(false);
+    }
+  }, [brandId, editingId, pending, router, spec]);
+
+  const chips = chipsFor(spec, done);
 
   return (
     <>
       <style>{`
-        @keyframes ab-slide-in {
-          0%   { opacity: 0; transform: translateY(-4px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
         @keyframes ab-fade-in {
           0%   { opacity: 0; transform: translateY(2px); }
           100% { opacity: 1; transform: translateY(0); }
@@ -242,29 +257,26 @@ export function CreateView() {
           0%   { background-color: var(--brand-soft); }
           100% { background-color: transparent; }
         }
-        @keyframes ab-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50%      { opacity: .55; transform: scale(.85); }
-        }
       `}</style>
       <div className="px-7 py-6 grid grid-cols-[1fr_360px] gap-5">
         <ChatContainer
           messages={messages}
-          chips={chips}
+          chips={chips.length > 0 ? chips : null}
           inputValue={inputValue}
           onInputChange={setInputValue}
           onSend={handleSend}
           onReset={handleReset}
           onChipClick={handleChipClick}
+          pending={pending}
         />
         <SpecRail
-          revealedSpecKeys={revealedSpecKeys}
-          lastRevealedKey={lastRevealedKey}
-          pipelineStage={pipelineStage}
-          hireVisible={allRevealed}
-          specOverrides={specOverrides}
           spec={spec}
-          brandId={brandId}
+          done={done}
+          pulsedKeys={pulsedKeys}
+          editing={!!editingId}
+          onSave={handleHire}
+          saveDisabled={!spec || !brandId || pending}
+          saving={pending}
         />
       </div>
     </>

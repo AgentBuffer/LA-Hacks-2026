@@ -1,16 +1,23 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { CreateView } from "@/components/create/create-view";
 
 export default function CreatePage() {
+  const searchParams = useSearchParams();
+  const editingId = searchParams.get("edit") ?? undefined;
   return (
     <>
       <Topbar
-        title="Create — the brain"
-        subtitle="describe the post you want · agents will build the spec on the right"
+        title={editingId ? "Edit — the brain" : "Create — the brain"}
+        subtitle={
+          editingId
+            ? "tell Main what to change · save when ready"
+            : "describe a recurring agent · the spec fills in on the right"
+        }
       />
-      <CreateView />
+      <CreateView editingId={editingId} />
     </>
   );
 }
