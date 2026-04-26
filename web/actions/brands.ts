@@ -2,12 +2,14 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/current-org";
+import { isDemoMode, DEMO_BRAND, DEMO_AGENTS } from "@/lib/demo";
 import type { BrandKit } from "@/lib/types/models";
 
 export async function getCurrentBrand(): Promise<{
   brand: BrandKit | null;
   agentCount: number;
 }> {
+  if (isDemoMode()) return { brand: DEMO_BRAND, agentCount: DEMO_AGENTS.length };
   const orgId = await getCurrentOrgId();
   if (!orgId) return { brand: null, agentCount: 0 };
 

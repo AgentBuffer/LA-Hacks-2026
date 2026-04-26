@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isDemoMode, DEMO_ORG_ID } from "@/lib/demo";
 
 /**
  * Resolve the org_id for the signed-in user.
@@ -8,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
  * available via both `user.app_metadata` and `user.user_metadata`.
  */
 export async function getCurrentOrgId(): Promise<string | null> {
+  if (isDemoMode()) return DEMO_ORG_ID;
   const supabase = await createClient();
   const {
     data: { user },
