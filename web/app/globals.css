@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  /* Surfaces */
+  --bg: oklch(98.2% 0.006 80);
+  --bg-2: oklch(96.5% 0.008 80);
+  --paper: oklch(99.5% 0.003 80);
+  --paper-2: oklch(97.8% 0.005 80);
+
+  /* Ink */
+  --ink: oklch(22% 0.01 70);
+  --ink-2: oklch(38% 0.012 70);
+  --ink-3: oklch(58% 0.012 70);
+
+  /* Lines */
+  --line: oklch(91% 0.008 80);
+  --line-2: oklch(86% 0.01 80);
+
+  /* Brand (Lumen amber) */
+  --brand: oklch(68% 0.14 58);
+  --brand-ink: oklch(38% 0.10 55);
+  --brand-soft: oklch(94% 0.04 70);
+
+  /* Semantic */
+  --ok: oklch(56% 0.12 150);
+  --ok-soft: oklch(94% 0.04 150);
+  --crit: oklch(58% 0.16 25);
+  --crit-soft: oklch(94% 0.04 25);
+  --running: oklch(62% 0.13 240);
+  --running-soft: oklch(94% 0.04 240);
+  --queued: oklch(60% 0.02 260);
+
+  /* Geometry */
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* Elevation */
+  --sh-1: 0 1px 0 rgba(40, 30, 20, 0.04), 0 1px 2px rgba(40, 30, 20, 0.04);
+  --sh-2: 0 1px 0 rgba(40, 30, 20, 0.04), 0 8px 24px -10px rgba(40, 30, 20, 0.18);
+}
+
+@theme inline {
+  /* Color utilities (bg-, text-, border-, etc.) */
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-crit: var(--crit);
+  --color-crit-soft: var(--crit-soft);
+  --color-running: var(--running);
+  --color-running-soft: var(--running-soft);
+  --color-queued: var(--queued);
+
+  /* Radius utilities (rounded-) */
+  --radius-sm: var(--r-sm);
+  --radius: var(--r);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+
+  /* Shadow utilities (shadow-) */
+  --shadow-1: var(--sh-1);
+  --shadow-2: var(--sh-2);
+
+  /* Font utilities (font-sans / font-mono / font-serif) */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+}
+
+/* Body baseline */
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Shared animations used across the shell + dashboard screens. */
+@keyframes ab-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.85); }
+  50%       { opacity: 1;    transform: scale(1.1); }
+}
+
+html {
+  scroll-behavior: smooth;
+}
