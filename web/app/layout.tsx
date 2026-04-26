@@ -29,13 +29,13 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
   ),
   title: {
-    default: "AgentBuffer — Hire AI agents that run your brand",
-    template: "%s · AgentBuffer",
+    default: "MediaFlow — Hire AI agents that run your brand",
+    template: "%s · MediaFlow",
   },
   description:
     "Onboard your brand once. Spawn AI agents that wake up on schedule, generate on-brand content, and post — while a Critic agent rejects anything off-voice.",
   openGraph: {
-    title: "AgentBuffer — Hire AI agents that run your brand",
+    title: "MediaFlow — Hire AI agents that run your brand",
     description:
       "Spawn AI agents that wake up on schedule, generate on-brand content, and post — while a Critic agent rejects anything off-voice.",
     images: [{ url: "/og.png", width: 1200, height: 630 }],
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AgentBuffer — Hire AI agents that run your brand",
+    title: "MediaFlow — Hire AI agents that run your brand",
     description:
       "Spawn AI agents that wake up on schedule, generate on-brand content, and post — while a Critic agent rejects anything off-voice.",
     images: ["/og.png"],

@@ -5,7 +5,7 @@ export default function OnboardPage() {
   return (
     <>
       <Topbar
-        title="Welcome to AgentBuffer"
+        title="Welcome to MediaFlow"
         subtitle="connect your brand · or load demo data to start exploring"
       />
       <div className="px-7 py-8">

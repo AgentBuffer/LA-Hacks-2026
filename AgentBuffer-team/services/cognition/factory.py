@@ -24,6 +24,7 @@ from services.shared.db import (
     insert_slot,
     log_event,
     start_run,
+    update_next_run_at,
     update_slot_publish,
 )
 from services.strategist.agent import propose_one
@@ -97,7 +98,18 @@ async def run_once(
     If `run_id` is provided, it is reused (caller has already created the
     live_runs row, e.g., the gateway pre-allocates so the UI can subscribe).
     """
-    brand_kit = get_brand_kit(brand_id)
+    try:
+        brand_kit = get_brand_kit(brand_id)
+    except ValueError as exc:
+        logger.error("Cognition run aborted — brand kit missing: %s", exc)
+        if run_id is not None:
+            finish_run(run_id, status="failed")
+        raise
+    if not brand_kit.get("voice_description") and not brand_kit.get("tone"):
+        logger.warning(
+            "Brand %s has no voice_description or tone — cognition will fall back to defaults",
+            brand_id,
+        )
     channel = recipe.get("channel") or (recipe.get("owns_channels") or [None])[0]
 
     if run_id is None:
@@ -206,6 +218,13 @@ async def run_once(
             status="published" if result.success else "failed",
             slot_id=slot_id,
         )
+        try:
+            update_next_run_at(
+                scheduled_agent_id,
+                parse_cadence(recipe.get("cadence")),
+            )
+        except Exception as exc:
+            logger.warning("Could not stamp next_run_at for %s: %s", scheduled_agent_id, exc)
     except Exception as exc:
         logger.exception("Cognition run failed: %s", exc)
         try:

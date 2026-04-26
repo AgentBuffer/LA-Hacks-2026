@@ -19,6 +19,8 @@ export interface ScheduledAgentRow {
   health: "ok" | "warn" | "off";
   last_latency_ms: number | null;
   runs_total: number;
+  last_run_at: string | null;
+  next_run_at: string | null;
 }
 
 export async function getScheduledAgentsForCurrentBrand(): Promise<
@@ -30,12 +32,41 @@ export async function getScheduledAgentsForCurrentBrand(): Promise<
   const { data, error } = await supabase
     .from("scheduled_agents")
     .select(
-      "id, slug, display_name, role_line, avatar_letter, description, cadence, owns_channels, tools, voice_traits, status, health, last_latency_ms, runs_total"
+      "id, slug, display_name, role_line, avatar_letter, description, cadence, owns_channels, tools, voice_traits, status, health, last_latency_ms, runs_total, last_run_at, next_run_at"
     )
     .eq("org_id", orgId)
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as ScheduledAgentRow[];
+}
+
+export interface BrandSummary {
+  brand_id: string | null;
+  name: string;
+  voice_description: string;
+  industry: string;
+  tagline: string;
+}
+
+export async function getBrandSummaryForCurrentOrg(): Promise<BrandSummary | null> {
+  const orgId = await getCurrentOrgId();
+  if (!orgId) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("brands")
+    .select("id, name, brand_kit")
+    .eq("org_id", orgId)
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  const kit = (data.brand_kit ?? {}) as Record<string, unknown>;
+  return {
+    brand_id: (data.id as string) ?? null,
+    name: (data.name as string) ?? (kit.name as string) ?? "Untitled brand",
+    voice_description: (kit.voice_description as string) ?? "",
+    industry: (kit.industry as string) ?? "",
+    tagline: (kit.tagline as string) ?? "",
+  };
 }
 
 export interface HireAgentInput {

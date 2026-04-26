@@ -1,15 +1,65 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const VIEWS = ["Day", "Week", "Month"] as const;
 
-export function CalendarToolbar() {
+interface CalendarToolbarProps {
+  weekLabel: string;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+  isCurrentWeek: boolean;
+}
+
+export function CalendarToolbar({
+  weekLabel,
+  onPrev,
+  onNext,
+  onToday,
+  isCurrentWeek,
+}: CalendarToolbarProps) {
   return (
     <div className="flex items-center gap-2 flex-wrap pb-4">
-      <span className="text-[12px] font-mono text-ink-3">
+      <div className="inline-flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onPrev}
+          className="grid place-items-center w-7 h-7 rounded-md border border-line bg-paper text-ink-2 hover:bg-bg-2"
+          aria-label="Previous week"
+        >
+          <ChevronLeft size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={onToday}
+          disabled={isCurrentWeek}
+          className={cn(
+            "h-7 px-2.5 rounded-md border border-line bg-paper text-[11px] font-mono",
+            isCurrentWeek
+              ? "text-ink-3 cursor-not-allowed"
+              : "text-ink-2 hover:bg-bg-2"
+          )}
+        >
+          today
+        </button>
+        <button
+          type="button"
+          onClick={onNext}
+          className="grid place-items-center w-7 h-7 rounded-md border border-line bg-paper text-ink-2 hover:bg-bg-2"
+          aria-label="Next week"
+        >
+          <ChevronRight size={13} />
+        </button>
+      </div>
+
+      <span className="text-[12.5px] font-serif font-semibold text-ink tabular-nums">
+        {weekLabel}
+      </span>
+
+      <span className="text-[11px] font-mono text-ink-3 ml-1">
         America/Los_Angeles
       </span>
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ChannelIcon } from "@/components/ui/channel-icon";
 import { HATCH_BG, aspectFor } from "@/lib/utils";
 import { markSlotPublished, type SlotRow } from "@/actions/slots";
+import { triggerPublish } from "@/lib/gateway";
 
 interface InlinePublishModalProps {
   slot: SlotRow;
@@ -44,15 +45,36 @@ export function InlinePublishModal({ slot, onClose }: InlinePublishModalProps) {
 
   function handlePublish() {
     if (enabledKeys.length === 0) return;
-    const permalinks = enabledKeys.map((platform) => ({
-      platform,
-      url: `https://${platform}.com/lumen-coffee/${slot.id}`,
-    }));
     startTransition(async () => {
+      let permalinks: { platform: string; url: string }[] = [];
+      try {
+        const out = (await triggerPublish([slot.id])) as Array<{
+          platform?: string;
+          permalink?: string | null;
+          url?: string | null;
+        }>;
+        permalinks = out
+          .filter((r) => r?.platform && (r.permalink || r.url))
+          .map((r) => ({
+            platform: r.platform as string,
+            url: (r.permalink ?? r.url) as string,
+          }));
+      } catch (err) {
+        console.warn("triggerPublish unavailable, marking locally:", err);
+      }
+      // Fallback: stamp the slot as published with placeholder permalinks
+      // so the UI has something to show in dev when the gateway is down.
+      if (permalinks.length === 0) {
+        permalinks = enabledKeys.map((platform) => ({
+          platform,
+          url: `https://${platform}.com/p/${slot.id}`,
+        }));
+      }
       try {
         await markSlotPublished(slot.id, permalinks);
         setResults(permalinks);
-      } catch {
+      } catch (err) {
+        console.error("markSlotPublished failed:", err);
         setResults(null);
       }
     });

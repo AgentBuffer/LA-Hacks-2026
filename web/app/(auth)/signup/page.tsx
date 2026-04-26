@@ -47,7 +47,7 @@ export default function SignupPage() {
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center gap-2 no-underline">
             <BrandMark size="md" />
-            <span className="font-semibold text-[15px] text-ink">AgentBuffer</span>
+            <span className="font-semibold text-[15px] text-ink">MediaFlow</span>
           </Link>
         </div>
 

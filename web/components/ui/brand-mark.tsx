@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 type Size = "sm" | "md" | "lg";
 
 const SIZE_CLS: Record<Size, string> = {
-  sm: "h-7 w-7 text-[13px]",
-  md: "h-8 w-8 text-[14px]",
-  lg: "h-10 w-10 text-[15px]",
+  sm: "h-7 w-7",
+  md: "h-8 w-8",
+  lg: "h-10 w-10",
 };
 
 interface BrandMarkProps {
@@ -15,18 +15,27 @@ interface BrandMarkProps {
 
 export function BrandMark({ size = "sm", className }: BrandMarkProps) {
   return (
-    <span
-      className={cn(
-        "rounded-lg grid place-items-center text-paper font-semibold shadow-[inset_0_0_0_1px_rgba(0,0,0,.06)]",
-        SIZE_CLS[size],
-        className
-      )}
-      style={{
-        background:
-          "linear-gradient(135deg, var(--brand) 0%, oklch(60% 0.16 35) 100%)",
-      }}
+    <svg
+      className={cn("shrink-0", SIZE_CLS[size], className)}
+      viewBox="0 0 130 110"
+      fill="none"
+      strokeWidth="9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
     >
-      ⌗
-    </span>
+      <path
+        d="M14 60 Q14 14 38 14 Q60 14 60 37 Q60 14 82 14 Q106 14 106 60"
+        stroke="var(--brand)"
+      />
+      <path
+        d="M14 75 Q14 29 38 29 Q60 29 60 52 Q60 29 82 29 Q106 29 106 75"
+        stroke="var(--ink)"
+      />
+      <path
+        d="M14 90 Q14 44 38 44 Q60 44 60 67 Q60 44 82 44 Q106 44 106 90"
+        stroke="var(--ink)"
+      />
+    </svg>
   );
 }

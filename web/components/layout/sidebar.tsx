@@ -36,7 +36,7 @@ export function Sidebar({ brand, agentCount }: SidebarProps) {
         <BrandMark size="sm" />
         <div className="min-w-0">
           <div className="font-semibold tracking-[-0.01em] text-[13.5px] text-ink leading-tight">
-            AgentBuffer
+            MediaFlow
           </div>
           <div className="text-[11px] text-ink-3 mt-px font-mono">v0.1</div>
         </div>

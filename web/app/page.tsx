@@ -31,7 +31,7 @@ function MarketingNav() {
       <Link href="/" className="flex items-center gap-2.5 no-underline">
         <BrandMark size="sm" />
         <span className="font-semibold text-[14px] text-ink tracking-[-0.01em]">
-          AgentBuffer
+          MediaFlow
         </span>
       </Link>
       <div className="hidden md:flex items-center gap-6 font-mono text-[11px] uppercase tracking-wider text-ink-2">
@@ -121,7 +121,7 @@ function ProductPeek() {
         <div className="border-[1.2px] border-ink-2 rounded-[var(--r-lg)] bg-paper p-2 overflow-hidden">
           <Image
             src="/marketing/dashboard-peek.png"
-            alt="AgentBuffer dashboard showing the weekly calendar with scheduled posts and three active agents"
+            alt="MediaFlow dashboard showing the weekly calendar with scheduled posts and three active agents"
             width={1600}
             height={1000}
             className="w-full h-auto rounded-[10px]"
@@ -366,7 +366,7 @@ function Faq() {
     },
     {
       q: "Who owns the content?",
-      a: "You do. AgentBuffer drafts and posts on your behalf; nothing is reused or trained on.",
+      a: "You do. MediaFlow drafts and posts on your behalf; nothing is reused or trained on.",
     },
     {
       q: "What happens if I don't like a draft?",
@@ -428,7 +428,7 @@ function MarketingFooter() {
   return (
     <footer className="px-7 py-8 border-t border-line bg-paper">
       <div className="max-w-[1100px] mx-auto flex items-center justify-between text-[11.5px] text-ink-3 font-mono">
-        <span>© 2026 AgentBuffer · LA Hacks 2026</span>
+        <span>© 2026 MediaFlow · LA Hacks 2026</span>
         <div className="flex items-center gap-5">
           <Link
             href="https://github.com"

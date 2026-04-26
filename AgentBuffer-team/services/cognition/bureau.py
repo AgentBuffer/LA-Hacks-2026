@@ -13,6 +13,7 @@ import sys
 from uagents import Bureau
 
 from services.cognition.factory import make_cognition_agent
+from services.cognition.supervisor import build_supervisor
 from services.shared.db import list_scheduled_agents
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -47,17 +48,19 @@ def build_bureau() -> Bureau:
     except Exception as exc:
         logger.warning("Main agent not registered: %s", exc)
 
-    # Cognition agents — one per scheduled_agents row.
+    # Cognition agents — one per scheduled_agents row at boot.
     try:
         rows = list_scheduled_agents()
     except Exception as exc:
         logger.error("Could not load scheduled_agents: %s", exc)
         rows = []
 
+    boot_registered_ids: set[str] = set()
     for row in rows:
         try:
             cog = make_cognition_agent(row)
             bureau.add(cog)
+            boot_registered_ids.add(row["id"])
             logger.info(
                 "  Cognition[%s/%s]: %s",
                 row.get("display_name") or row.get("slug"),
@@ -66,6 +69,12 @@ def build_bureau() -> Bureau:
             )
         except Exception as exc:
             logger.error("Failed to build cognition agent %s: %s", row.get("id"), exc)
+
+    # Supervisor handles rows added after boot — services them on cadence
+    # without requiring a restart.
+    supervisor = build_supervisor(boot_registered_ids)
+    bureau.add(supervisor)
+    logger.info("  Supervisor: %s (tracks rows added after boot)", supervisor.address)
 
     return bureau
 
