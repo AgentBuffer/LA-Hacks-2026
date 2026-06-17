@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/current-org";
 import { revalidatePath } from "next/cache";
+import { isDemoMode, DEMO_AGENTS, DEMO_BRAND } from "@/lib/demo";
 
 export interface ScheduledAgentRow {
   id: string;
@@ -26,6 +27,7 @@ export interface ScheduledAgentRow {
 export async function getScheduledAgentsForCurrentBrand(): Promise<
   ScheduledAgentRow[]
 > {
+  if (isDemoMode()) return DEMO_AGENTS;
   const orgId = await getCurrentOrgId();
   if (!orgId) return [];
   const supabase = await createClient();
@@ -49,6 +51,13 @@ export interface BrandSummary {
 }
 
 export async function getBrandSummaryForCurrentOrg(): Promise<BrandSummary | null> {
+  if (isDemoMode()) return {
+    brand_id: DEMO_BRAND.brand_id,
+    name: DEMO_BRAND.name,
+    voice_description: DEMO_BRAND.voice_description,
+    industry: DEMO_BRAND.industry,
+    tagline: DEMO_BRAND.tagline,
+  };
   const orgId = await getCurrentOrgId();
   if (!orgId) return null;
   const supabase = await createClient();

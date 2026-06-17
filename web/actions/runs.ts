@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/current-org";
+import { isDemoMode, DEMO_LIVE_RUN } from "@/lib/demo";
 
 export interface LiveEvent {
   id: string;
@@ -36,6 +37,7 @@ export interface LiveRun {
 }
 
 export async function getLatestRunForBrand(): Promise<LiveRun | null> {
+  if (isDemoMode()) return DEMO_LIVE_RUN as LiveRun;
   const orgId = await getCurrentOrgId();
   if (!orgId) return null;
   const supabase = await createClient();

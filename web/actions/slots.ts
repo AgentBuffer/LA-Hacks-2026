@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrgId } from "@/lib/supabase/current-org";
+import { isDemoMode, DEMO_SLOTS } from "@/lib/demo";
 import type { SlotStatus } from "@/lib/types/models";
 
 export interface SlotRow {
@@ -23,6 +24,7 @@ export interface SlotRow {
 }
 
 export async function getSlotsForCurrentBrand(): Promise<SlotRow[]> {
+  if (isDemoMode()) return DEMO_SLOTS as SlotRow[];
   const orgId = await getCurrentOrgId();
   if (!orgId) return [];
   const supabase = await createClient();
